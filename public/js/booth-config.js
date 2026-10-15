@@ -1,8 +1,10 @@
 // booth-config.js - applies the admin's settings (layouts, frames, active template) to the photobooth.
 // Load BEFORE photobooth.js. Only settings are read here; no photo ever leaves the user's device.
-let boothConfig = XenConfig.load();
+let boothConfig = XenConfig.defaults();
 let activeTemplate = null;
 let templateLogo = null;
+let sharedConfigUpdatedAt = null;
+let sharedSettingsSyncEnabled = true;
 
 const escHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -135,8 +137,28 @@ function drawBackground(ctx, w, h) {
     drawPattern(ctx, w, h, look.frame.pattern, look.frame.accent);
 }
 
-function applyBoothConfig() {
-    boothConfig = XenConfig.load();
+async function applyBoothConfig(config = null, updatedAt = null) {
+    if (!config) {
+        try {
+            const response = await fetch("/api/config", { cache: "no-store" });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || "Could not load shared settings.");
+            config = result.config;
+            updatedAt = result.updatedAt;
+        } catch (error) {
+            if (!["localhost", "127.0.0.1", "::1"].includes(location.hostname) && !error.message.includes("not configured")) {
+                console.error("Could not load shared photobooth settings", error);
+                document.querySelector(".layout-grid").innerHTML = '<p class="hint" role="alert">Photobooth settings are temporarily unavailable. Please reload this page or contact the administrator.</p>';
+                return;
+            }
+            console.warn("Using local photobooth settings because shared settings are not configured", error);
+            config = XenConfig.load();
+            sharedSettingsSyncEnabled = false;
+        }
+    }
+    boothConfig = config;
+    sharedConfigUpdatedAt = updatedAt ? new Date(updatedAt).getTime() : null;
+    XenConfig.save(boothConfig);
     activeTemplate = XenConfig.activeTemplate(boothConfig);
     templateLogo = null;
     if (activeTemplate?.logo) {
@@ -150,5 +172,21 @@ function applyBoothConfig() {
     applyLayoutPhotoLimit();
 }
 
-// When the admin saves (in another tab of the same browser), it shows up here right away.
-window.addEventListener("storage", (event) => { if (event.key === XenConfig.KEY && !isCapturing) applyBoothConfig(); });
+window.setInterval(async () => {
+    if (isCapturing || !sharedSettingsSyncEnabled) return;
+    try {
+        const response = await fetch("/api/config", { cache: "no-store" });
+        if (!response.ok) throw new Error(`Settings request failed (${response.status}).`);
+        const result = await response.json();
+        const updatedAt = result.updatedAt ? new Date(result.updatedAt).getTime() : null;
+        if (updatedAt !== sharedConfigUpdatedAt) await applyBoothConfig(result.config, result.updatedAt);
+    } catch (error) {
+        console.warn("Could not refresh shared photobooth settings", error);
+    }
+}, 15000);
+
+window.addEventListener("storage", (event) => {
+    if (event.key === XenConfig.KEY && !isCapturing && !sharedSettingsSyncEnabled) {
+        applyBoothConfig(XenConfig.load());
+    }
+});

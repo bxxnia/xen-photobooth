@@ -3,10 +3,12 @@
 const view = document.getElementById("view");
 const toastEl = document.getElementById("toast");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-let cfg = XenConfig.load();
+let cfg = XenConfig.defaults();
 let tab = "layouts";
 let toastTimer;
 let showHiddenLayouts = false;
+let settingsSource = "loading";
+let settingsSaveQueue = Promise.resolve();
 
 function toast(text, isError = false) {
     toastEl.textContent = text;
@@ -16,8 +18,31 @@ function toast(text, isError = false) {
     toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
 }
 function persist(text = "Saved") {
-    if (XenConfig.save(cfg)) toast(`${text} ✓ Live on the photobooth.`);
-    else toast("Could not save. Browser storage is full (try a smaller logo).", true);
+    if (settingsSource === "local") {
+        if (XenConfig.save(cfg)) toast(`${text} ✓ Saved in this browser.`);
+        else toast("Could not save. Browser storage is full (try a smaller logo).", true);
+        return;
+    }
+    if (settingsSource !== "shared") {
+        toast("Shared settings are unavailable. Check the MongoDB connection on the server.", true);
+        return;
+    }
+    const snapshot = JSON.parse(JSON.stringify(cfg));
+    settingsSaveQueue = settingsSaveQueue.then(async () => {
+        const response = await fetch("/api/admin/config", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ config: snapshot })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not save shared settings.");
+        XenConfig.save(snapshot);
+        toast(`${text} ✓ Live on all devices.`);
+    }).catch((error) => {
+        console.error("Could not save shared admin settings", error);
+        toast(error.message || "Could not save shared settings.", true);
+    });
 }
 const hasUsableLayout = () => cfg.layouts.some((l) => l.active) || !!XenConfig.activeTemplate(cfg);
 
@@ -64,7 +89,7 @@ function templatesView() {
         return `<div class="card-form ${on ? "is-active" : ""}">
         <div class="tpl-preview" style="background:${esc(t.bg)};color:${esc(t.textColor)}"><strong>${esc(t.brandText || "XEN PHOTOBOOTH")}</strong><span>${esc(t.eventName || "made with love")}</span>${t.logo ? `<img src="${t.logo}" alt="">` : ""}</div>
         ${field("name", "Template name", "text")}
-        <label>Photo layout<select data-kind="templates" data-id="${t.id}" data-field="layoutType">${[["strip", "Photostrip (4)"], ["grid", "Grid (4)"], ["polaroid", "Polaroid (2)"], ["square", "Square collage (4)"]].map(([v, n]) => `<option value="${v}" ${t.layoutType === v ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label>Photo layout<select data-kind="templates" data-id="${t.id}" data-field="layoutType">${[["strip", "Photostrip (3)"], ["grid", "Grid (4)"], ["polaroid", "Polaroid (2)"], ["square", "Square collage (4)"]].map(([v, n]) => `<option value="${v}" ${t.layoutType === v ? "selected" : ""}>${n}</option>`).join("")}</select></label>
         <div class="row2">${field("bg", "Background (when no frame)", "color")}${field("textColor", "Text color", "color")}</div>
         ${field("brandText", "Footer title", "text", 'placeholder="XEN PHOTOBOOTH"')}
         ${field("eventName", "Default event name", "text")}
@@ -83,14 +108,20 @@ function settingsView() {
     <div class="privacy-note"><strong>Privacy:</strong> The admin never saves or sees users' photos. Photos stay in the user's browser while they use the booth and are gone when a new session starts. This page only holds layouts, templates, and frames.</div>
     <div class="settings-grid">
       <div class="card-form"><h3>Admin login</h3><p class="hint" style="margin:0">Admin credentials are managed in the server environment using ADMIN_USERNAME and ADMIN_PASSWORD. Update them in your hosting provider's environment settings, then restart or redeploy the app.</p></div>
-      <div class="card-form"><h3>Backup &amp; transfer</h3><p class="hint" style="margin:0">Settings are saved in this browser. To move them to another device, export here and import there.</p>
+      <div class="card-form"><h3>Backup &amp; transfer</h3><p class="hint" style="margin:0">Settings sync through the server to all users. Export or import a JSON file to back up or move settings to another installation.</p>
         <div class="card-actions"><button class="btn soft" data-act="export">Export settings</button><label class="btn ghost" style="cursor:pointer">Import settings<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn danger" data-act="reset">Reset to defaults</button></div></div>
     </div>`;
 }
 
 function render() {
     document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-    view.innerHTML = { layouts: layoutsView, templates: templatesView, frames: framesView, settings: settingsView }[tab]();
+    const status = settingsSource === "unavailable"
+        ? '<div class="privacy-note" role="alert"><strong>Shared settings unavailable.</strong> Configure MONGODB_URI on the server before making changes; admin settings will not sync to other devices until then.</div>'
+        : settingsSource === "local"
+            ? '<div class="privacy-note"><strong>Local mode.</strong> MongoDB is not configured, so settings are saved only in this browser and will not sync to other devices.</div>'
+            : "";
+    view.innerHTML = `${status}${{ layouts: layoutsView, templates: templatesView, frames: framesView, settings: settingsView }[tab]()}`;
+    view.inert = settingsSource === "unavailable" || settingsSource === "loading";
 }
 
 function shrinkImage(file, max = 320) {
@@ -188,12 +219,47 @@ async function importSettings(file) {
     try {
         const data = JSON.parse(await file.text());
         if (!Array.isArray(data.layouts) || !Array.isArray(data.frames) || !Array.isArray(data.templates)) throw new Error();
-        localStorage.setItem(XenConfig.KEY, JSON.stringify(data));
-        cfg = XenConfig.load();
+        cfg = data;
         if (!hasUsableLayout()) cfg.layouts[0].active = true;
         persist("Imported");
         render();
     } catch { toast("That is not a valid settings file.", true); }
 }
 
-render();
+async function initializeSettings() {
+    try {
+        const response = await fetch("/api/config", { cache: "no-store" });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not load shared settings.");
+        if (!result.initialized) {
+            const savedLocally = localStorage.getItem(XenConfig.KEY);
+            cfg = savedLocally ? XenConfig.load() : result.config;
+            settingsSource = "shared";
+            const saveResponse = await fetch("/api/admin/config", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
+                body: JSON.stringify({ config: cfg })
+            });
+            const saveResult = await saveResponse.json();
+            if (!saveResponse.ok) throw new Error(saveResult.error || "Could not initialize shared settings.");
+            XenConfig.save(cfg);
+        } else {
+            cfg = result.config;
+            XenConfig.save(cfg);
+            settingsSource = "shared";
+        }
+    } catch (error) {
+        console.error("Could not initialize shared settings", error);
+        if (["localhost", "127.0.0.1", "::1"].includes(location.hostname) || error.message.includes("not configured")) {
+            cfg = XenConfig.load();
+            settingsSource = "local";
+        } else {
+            settingsSource = "unavailable";
+            toast(error.message || "Shared settings are unavailable.", true);
+        }
+    }
+    render();
+}
+
+initializeSettings();

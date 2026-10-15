@@ -93,3 +93,5 @@ const XenConfig = (() => {
 
     return { KEY, TYPE_COUNTS, PATTERNS, defaults, load, save, activeTemplate, uid, safeColor, isDark, swatchHtml };
 })();
+
+if (typeof module !== "undefined" && module.exports) module.exports = XenConfig;

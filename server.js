@@ -4,6 +4,8 @@ const dotenv = require('dotenv');
 const QRCode = require('qrcode');
 const cors = require('cors');
 const crypto = require('crypto');
+const mongoose = require('mongoose');
+const XenConfig = require('./public/js/config.js');
 
 dotenv.config();
 
@@ -15,9 +17,29 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_SESSION_TTL = 8 * 60 * 60 * 1000;
 const sessions = new Map();
 const loginAttempts = new Map();
+const SETTINGS_ID = 'global';
+let mongoConnectionPromise = null;
+const settingsSchema = new mongoose.Schema({
+  config: { type: mongoose.Schema.Types.Mixed, required: true },
+  updatedAt: { type: Date, required: true }
+}, { versionKey: false, collection: 'app_settings' });
+const Settings = mongoose.models.AppSettings || mongoose.model('AppSettings', settingsSchema);
+
+async function ensureMongoConnection() {
+  if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is not configured.');
+  if (mongoose.connection.readyState === 1) return;
+  if (!mongoConnectionPromise) {
+    mongoConnectionPromise = mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 10000 })
+      .catch((error) => {
+        mongoConnectionPromise = null;
+        throw error;
+      });
+  }
+  await mongoConnectionPromise;
+}
 
 app.use(cors());
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '8mb' }));
 app.use((req, res, next) => {
   const pagePath = req.path.toLowerCase();
   if (pagePath === '/admin-login.html' || pagePath === '/admin.html') {
@@ -99,6 +121,51 @@ app.post('/api/admin/logout', (req, res) => {
   if (sessionId) sessions.delete(sessionId);
   setAdminCookie(req, res, '', 0);
   res.json({ authenticated: false });
+});
+
+app.get('/api/config', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    await ensureMongoConnection();
+    const saved = await Settings.findById(SETTINGS_ID).lean();
+    res.json({
+      config: saved?.config || XenConfig.defaults(),
+      initialized: Boolean(saved),
+      updatedAt: saved?.updatedAt || null
+    });
+  } catch (error) {
+    console.error('Could not load shared settings:', error.message);
+    res.status(503).json({
+      error: process.env.MONGODB_URI
+        ? 'Shared settings are temporarily unavailable.'
+        : 'Shared settings are not configured on the server.'
+    });
+  }
+});
+
+app.put('/api/admin/config', async (req, res) => {
+  if (!getAdminSession(req)) return res.status(401).json({ error: 'Admin login is required.' });
+  const config = req.body?.config;
+  if (!config || !Array.isArray(config.layouts) || !Array.isArray(config.frames) || !Array.isArray(config.templates)) {
+    return res.status(400).json({ error: 'A valid settings configuration is required.' });
+  }
+  try {
+    await ensureMongoConnection();
+    const updatedAt = new Date();
+    await Settings.findByIdAndUpdate(
+      SETTINGS_ID,
+      { $set: { config, updatedAt } },
+      { new: true, upsert: true, runValidators: true }
+    );
+    res.json({ saved: true, updatedAt });
+  } catch (error) {
+    console.error('Could not save shared settings:', error.message);
+    res.status(503).json({
+      error: process.env.MONGODB_URI
+        ? 'Could not save shared settings. Please try again.'
+        : 'Shared settings are not configured on the server.'
+    });
+  }
 });
 
 app.get('/health', (req, res) => {
