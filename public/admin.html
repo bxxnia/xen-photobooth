@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
     <title>Admin · Xen Photobooth</title>
-    <script>if (sessionStorage.getItem("xenAdmin") !== "1") location.replace("admin-login.html");</script>
+    <script>
+        fetch("/api/admin/session", { credentials: "same-origin" })
+            .then((response) => { if (!response.ok) location.replace("admin-login.html"); })
+            .catch(() => location.replace("admin-login.html"));
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/admin.css">
 </head>

@@ -77,7 +77,7 @@ function settingsView() {
     return `<div class="section-head"><h2>Settings</h2></div>
     <div class="privacy-note"><strong>Privacy:</strong> The admin never saves or sees users' photos. Photos stay in the user's browser while they use the booth and are gone when a new session starts. This page only holds layouts, templates, and frames.</div>
     <div class="settings-grid">
-      <div class="card-form"><h3>Change admin password</h3><form class="pw-form" id="pwForm"><label>Current password<input type="password" id="oldPw" autocomplete="current-password" required></label><label>New password (min. 8)<input type="password" id="newPw" minlength="8" autocomplete="new-password" required></label><p class="form-msg" id="pwMsg"></p><button class="btn primary" type="submit">Update password</button></form></div>
+      <div class="card-form"><h3>Admin login</h3><p class="hint" style="margin:0">Admin credentials are managed in the server environment using ADMIN_USERNAME and ADMIN_PASSWORD. Update them in your hosting provider's environment settings, then restart or redeploy the app.</p></div>
       <div class="card-form"><h3>Backup &amp; transfer</h3><p class="hint" style="margin:0">Settings are saved in this browser. To move them to another device, export here and import there.</p>
         <div class="card-actions"><button class="btn soft" data-act="export">Export settings</button><label class="btn ghost" style="cursor:pointer">Import settings<input type="file" accept="application/json" id="importFile" hidden></label><button class="btn danger" data-act="reset">Reset to defaults</button></div></div>
     </div>`;
@@ -133,7 +133,13 @@ document.addEventListener("click", (event) => {
     const { act, id } = btn.dataset;
     const tpl = cfg.templates.find((t) => t.id === id);
     if (act === "tab") { tab = btn.dataset.tab; return render(); }
-    if (act === "logout") { sessionStorage.removeItem("xenAdmin"); location.href = "admin-login.html"; return; }
+    if (act === "logout") {
+        sessionStorage.removeItem("xenAdmin");
+        fetch("/api/admin/logout", { method: "POST", credentials: "same-origin" })
+            .catch((error) => console.error("Admin logout request failed", error))
+            .finally(() => { location.href = "admin-login.html"; });
+        return;
+    }
     if (act === "add-frame") cfg.frames.push({ id: XenConfig.uid("frame"), name: "New frame", builtin: false, active: true, bg: "#fbdde5", bg2: "#fbdde5", pattern: "hearts", accent: "#e58fa8" });
     else if (act === "dup-frame") {
         const src = cfg.frames.find((f) => f.id === id);
@@ -160,17 +166,6 @@ document.addEventListener("click", (event) => {
     else return;
     persist();
     render();
-});
-
-document.addEventListener("submit", async (event) => {
-    if (event.target.id !== "pwForm") return;
-    event.preventDefault();
-    const msg = document.getElementById("pwMsg");
-    try {
-        const ok = await XenAuth.change(document.getElementById("oldPw").value, document.getElementById("newPw").value);
-        if (ok) { toast("Password updated ✓"); event.target.reset(); msg.textContent = ""; }
-        else msg.textContent = "Current password is incorrect.";
-    } catch (error) { msg.textContent = error.message; }
 });
 
 function exportSettings() {

@@ -12,7 +12,7 @@
     <main class="login-card">
         <a class="login-brand" href="photobooth.html">← Back to photobooth</a>
         <h1>Admin <em>login</em></h1>
-            <p class="hint">Edit layouts, templates, and frames here.</p>
+            <p class="hint">Edit layouts, templates, and frames here. Admin credentials are set in the server environment.</p>
         <form id="loginForm" autocomplete="on">
             <label>Username<input id="user" type="text" autocomplete="username" required autofocus></label>
             <label>Password<input id="pass" type="password" autocomplete="current-password" required></label>
@@ -20,31 +20,39 @@
             <button class="btn primary" type="submit">Log in</button>
         </form>
     </main>
-    <script src="js/config.js"></script>
     <script>
-        if (sessionStorage.getItem("xenAdmin") === "1") location.replace("admin.html");
-                const msg = document.getElementById("msg");
-        document.getElementById("loginForm").addEventListener("submit", async (event) => {
+        const msg = document.getElementById("msg");
+        const form = document.getElementById("loginForm");
+        const submitButton = form.querySelector('button[type="submit"]');
+        fetch("/api/admin/session", { credentials: "same-origin" })
+            .then((response) => { if (response.ok) location.replace("admin.html"); })
+            .catch(() => { msg.textContent = "Could not connect to the admin service. Try again."; });
+        form.addEventListener("submit", async (event) => {
             event.preventDefault();
-            const lockedUntil = Number(localStorage.getItem("xenLock") || 0);
-            if (Date.now() < lockedUntil) {
-                msg.textContent = `Too many failed attempts. Try again in ${Math.ceil((lockedUntil - Date.now()) / 1000)} seconds.`;
-                return;
-            }
+            submitButton.disabled = true;
+            msg.textContent = "";
             try {
-                const ok = await XenAuth.verify(document.getElementById("user").value.trim(), document.getElementById("pass").value);
-                if (ok) {
+                const response = await fetch("/api/admin/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "same-origin",
+                    body: JSON.stringify({
+                        username: document.getElementById("user").value.trim(),
+                        password: document.getElementById("pass").value
+                    })
+                });
+                const result = await response.json();
+                if (response.ok && result.authenticated) {
                     sessionStorage.setItem("xenAdmin", "1");
-                    localStorage.removeItem("xenFails");
                     location.href = "admin.html";
                     return;
                 }
-                const fails = Number(localStorage.getItem("xenFails") || 0) + 1;
-                if (fails >= 5) { localStorage.setItem("xenLock", Date.now() + 30000); localStorage.setItem("xenFails", 0); }
-                else localStorage.setItem("xenFails", fails);
-                msg.textContent = "Wrong username or password.";
+                msg.textContent = result.error || "Could not log in. Please try again.";
             } catch (error) {
-                msg.textContent = error.message;
+                console.error("Admin login request failed", error);
+                msg.textContent = "Could not connect to the admin service. Check your connection and try again.";
+            } finally {
+                submitButton.disabled = false;
             }
         });
     </script>

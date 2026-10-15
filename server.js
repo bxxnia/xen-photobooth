@@ -3,7 +3,7 @@ const path = require('path');
 const dotenv = require('dotenv');
 const QRCode = require('qrcode');
 const cors = require('cors');
-const os = require('os');
+const crypto = require('crypto');
 
 dotenv.config();
 
@@ -12,10 +12,94 @@ const app = express();
 app.set('trust proxy', 1);
 
 const PORT = process.env.PORT || 3000;
+const ADMIN_SESSION_TTL = 8 * 60 * 60 * 1000;
+const sessions = new Map();
+const loginAttempts = new Map();
 
 app.use(cors());
+app.use(express.json({ limit: '10kb' }));
+app.use((req, res, next) => {
+  const pagePath = req.path.toLowerCase();
+  if (pagePath === '/admin-login.html' || pagePath === '/admin.html') {
+    res.set('Cache-Control', 'no-store');
+    if (pagePath === '/admin.html' && !getAdminSession(req)) {
+      return res.redirect(302, '/admin-login.html');
+    }
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/vendor/gif.js', express.static(path.join(__dirname, 'node_modules', 'gif.js', 'dist')));
+
+function safeEqual(left, right) {
+  const leftHash = crypto.createHash('sha256').update(left).digest();
+  const rightHash = crypto.createHash('sha256').update(right).digest();
+  return crypto.timingSafeEqual(leftHash, rightHash);
+}
+
+function getAdminSession(req) {
+  const cookies = (req.headers.cookie || '').split(';');
+  const sessionCookie = cookies.map((cookie) => cookie.trim()).find((cookie) => cookie.startsWith('xenAdminSession='));
+  if (!sessionCookie) return null;
+  const sessionId = sessionCookie.slice('xenAdminSession='.length);
+  const expiresAt = sessions.get(sessionId);
+  if (!expiresAt) return null;
+  if (expiresAt <= Date.now()) {
+    sessions.delete(sessionId);
+    return null;
+  }
+  return sessionId;
+}
+
+function setAdminCookie(req, res, sessionId, maxAge) {
+  const secure = req.secure ? '; Secure' : '';
+  res.set('Set-Cookie', `xenAdminSession=${encodeURIComponent(sessionId)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`);
+}
+
+app.post('/api/admin/login', (req, res) => {
+  const username = process.env.ADMIN_USERNAME;
+  const password = process.env.ADMIN_PASSWORD;
+  if (!username || !password) {
+    return res.status(503).json({ error: 'Admin login is not configured on the server.' });
+  }
+
+  const ip = req.ip;
+  const attempt = loginAttempts.get(ip);
+  if (attempt && attempt.lockedUntil > Date.now()) {
+    return res.status(429).json({ error: 'Too many failed attempts. Please wait before trying again.' });
+  }
+
+  const submittedUsername = typeof req.body?.username === 'string' ? req.body.username : '';
+  const submittedPassword = typeof req.body?.password === 'string' ? req.body.password : '';
+  if (!safeEqual(submittedUsername, username) || !safeEqual(submittedPassword, password)) {
+    const failures = attempt && attempt.windowStartedAt > Date.now() - 15 * 60 * 1000 ? attempt.failures + 1 : 1;
+    loginAttempts.set(ip, {
+      failures,
+      windowStartedAt: attempt?.windowStartedAt > Date.now() - 15 * 60 * 1000 ? attempt.windowStartedAt : Date.now(),
+      lockedUntil: failures >= 5 ? Date.now() + 60 * 1000 : 0
+    });
+    return res.status(401).json({ error: 'Wrong username or password.' });
+  }
+
+  loginAttempts.delete(ip);
+  const sessionId = crypto.randomBytes(32).toString('hex');
+  sessions.set(sessionId, Date.now() + ADMIN_SESSION_TTL);
+  setAdminCookie(req, res, sessionId, ADMIN_SESSION_TTL / 1000);
+  res.json({ authenticated: true });
+});
+
+app.get('/api/admin/session', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!getAdminSession(req)) return res.status(401).json({ authenticated: false });
+  res.json({ authenticated: true });
+});
+
+app.post('/api/admin/logout', (req, res) => {
+  const sessionId = getAdminSession(req);
+  if (sessionId) sessions.delete(sessionId);
+  setAdminCookie(req, res, '', 0);
+  res.json({ authenticated: false });
+});
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'xen-photobooth is running' });

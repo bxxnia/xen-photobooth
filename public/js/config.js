@@ -93,5 +93,3 @@ const XenConfig = (() => {
 
     return { KEY, TYPE_COUNTS, PATTERNS, defaults, load, save, activeTemplate, uid, safeColor, isDark, swatchHtml };
 })();
-
-// ... keep your existing XenAuth block below, unchanged ...
