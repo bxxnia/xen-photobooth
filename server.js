@@ -20,6 +20,7 @@ const loginAttempts = new Map();
 const SETTINGS_ID = 'global';
 let mongoConnectionPromise = null;
 const settingsSchema = new mongoose.Schema({
+  _id: { type: String, required: true },
   config: { type: mongoose.Schema.Types.Mixed, required: true },
   updatedAt: { type: Date, required: true }
 }, { versionKey: false, collection: 'app_settings' });
