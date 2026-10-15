@@ -6,6 +6,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 let cfg = XenConfig.load();
 let tab = "layouts";
 let toastTimer;
+let showHiddenLayouts = false;
 
 function toast(text, isError = false) {
     toastEl.textContent = text;
@@ -24,13 +25,17 @@ const toggle = (kind, id, checked, disabled = false) =>
     `<label class="switch"><input type="checkbox" data-kind="${kind}" data-id="${id}" data-field="active" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""}><i></i><span>${checked ? "Active" : "Hidden"}</span></label>`;
 
 function layoutsView() {
+    const visibleLayouts = cfg.layouts.filter((layout) => layout.active);
+    const hiddenLayouts = cfg.layouts.filter((layout) => !layout.active);
+    const layoutItem = (layout) => `<div class="item ${layout.active ? "is-active" : ""}">
+        <div class="item-main"><label>Name<input type="text" data-kind="layouts" data-id="${layout.id}" data-field="name" value="${esc(layout.name)}"></label>
+        <label>Description<input type="text" data-kind="layouts" data-id="${layout.id}" data-field="desc" value="${esc(layout.desc)}"></label>
+        <span class="count-note">${XenConfig.TYPE_COUNTS[layout.id]} photos</span></div>
+        ${toggle("layouts", layout.id, layout.active)}</div>`;
     return `<div class="section-head"><h2>Step 2 layouts</h2></div>
-    <p class="hint">These are the choices users see in "Choose your shape". Edit the name or description, and switch Active/Hidden to show or hide a layout for users.</p>
-    <div class="list">${cfg.layouts.map((l) => `<div class="item ${l.active ? "is-active" : ""}">
-        <div class="item-main"><label>Name<input type="text" data-kind="layouts" data-id="${l.id}" data-field="name" value="${esc(l.name)}"></label>
-        <label>Description<input type="text" data-kind="layouts" data-id="${l.id}" data-field="desc" value="${esc(l.desc)}"></label>
-        <span class="count-note">${XenConfig.TYPE_COUNTS[l.id]} photos</span></div>
-        ${toggle("layouts", l.id, l.active)}</div>`).join("")}</div>
+    <p class="hint">These active choices appear to users in "Choose your shape". Hidden layouts are removed from this list and can be restored below.</p>
+    ${visibleLayouts.length ? `<div class="list">${visibleLayouts.map(layoutItem).join("")}</div>` : `<div class="empty">No active layouts. Activate a hidden layout below or use an event template.</div>`}
+    ${hiddenLayouts.length ? `<details class="hidden-layouts"${showHiddenLayouts ? " open" : ""}><summary>Show hidden layouts (${hiddenLayouts.length})</summary><div class="list">${hiddenLayouts.map(layoutItem).join("")}</div></details>` : ""}
     <p class="hint" style="margin-top:16px">The "Custom event template" card only appears when a template is in use (see the Templates tab).</p>`;
 }
 
@@ -106,6 +111,10 @@ function shrinkImage(file, max = 320) {
 }
 
 const listFor = (kind) => ({ layouts: cfg.layouts, frames: cfg.frames, templates: cfg.templates }[kind]);
+
+view.addEventListener("toggle", (event) => {
+    if (event.target.matches(".hidden-layouts")) showHiddenLayouts = event.target.open;
+}, true);
 
 document.addEventListener("change", async (event) => {
     const el = event.target;

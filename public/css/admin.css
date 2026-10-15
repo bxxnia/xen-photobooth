@@ -22,6 +22,7 @@ em { color: var(--pink); }
 .section-head h2 { font-size: 34px; }
 
 .list { display: grid; gap: 12px; }
+.hidden-layouts { margin-top: 16px; }.hidden-layouts summary { width: fit-content; color: var(--soft); font-size: 12px; font-weight: 700; cursor: pointer; }.hidden-layouts[open] summary { margin-bottom: 12px; }
 .item { display: flex; gap: 18px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
 .item.is-active { border-color: var(--pink); box-shadow: 0 0 0 2px #f6dce4; }
 .item-main { display: flex; gap: 12px; flex: 1; flex-wrap: wrap; min-width: 240px; align-items: flex-end; }
