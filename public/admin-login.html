@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Admin login · Xen Photobooth</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="login-body">
+    <main class="login-card">
+        <a class="login-brand" href="photobooth.html">← Back to photobooth</a>
+        <h1>Admin <em>login</em></h1>
+            <p class="hint">Edit layouts, templates, and frames here.</p>
+        <form id="loginForm" autocomplete="on">
+            <label>Username<input id="user" type="text" autocomplete="username" required autofocus></label>
+            <label>Password<input id="pass" type="password" autocomplete="current-password" required></label>
+            <p id="msg" class="form-msg" role="alert"></p>
+            <button class="btn primary" type="submit">Log in</button>
+        </form>
+    </main>
+    <script src="js/config.js"></script>
+    <script>
+        if (sessionStorage.getItem("xenAdmin") === "1") location.replace("admin.html");
+                const msg = document.getElementById("msg");
+        document.getElementById("loginForm").addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const lockedUntil = Number(localStorage.getItem("xenLock") || 0);
+            if (Date.now() < lockedUntil) {
+                msg.textContent = `Too many failed attempts. Try again in ${Math.ceil((lockedUntil - Date.now()) / 1000)} seconds.`;
+                return;
+            }
+            try {
+                const ok = await XenAuth.verify(document.getElementById("user").value.trim(), document.getElementById("pass").value);
+                if (ok) {
+                    sessionStorage.setItem("xenAdmin", "1");
+                    localStorage.removeItem("xenFails");
+                    location.href = "admin.html";
+                    return;
+                }
+                const fails = Number(localStorage.getItem("xenFails") || 0) + 1;
+                if (fails >= 5) { localStorage.setItem("xenLock", Date.now() + 30000); localStorage.setItem("xenFails", 0); }
+                else localStorage.setItem("xenFails", fails);
+                msg.textContent = "Wrong username or password.";
+            } catch (error) {
+                msg.textContent = error.message;
+            }
+        });
+    </script>
+</body>
+</html>

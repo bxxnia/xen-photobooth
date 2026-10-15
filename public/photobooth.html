@@ -1,0 +1,439 @@
+<!-- Photobooth page for Xen Photobooth -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Xen Photobooth</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+
+<style>
+    body {
+        min-height: 100vh;
+        overflow-y: auto;
+    }
+
+    .booth-page {
+        min-height: 100vh;
+        padding: 40px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .booth-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 42px;
+        margin-bottom: 8px;
+    }
+
+    .booth-title .xen {
+        color: #5ab854;
+    }
+
+    .booth-title em {
+        color: #e8799a;
+    }
+
+    .booth-subtitle {
+        color: #6f9b69;
+        font-size: 13px;
+        margin-bottom: 30px;
+        letter-spacing: 0.08em;
+    }
+
+    .camera-container {
+        width: min(700px, 90vw);
+        background: #ffffff;
+        padding: 18px;
+        border-radius: 28px;
+        box-shadow: 0 15px 45px rgba(80, 100, 75, 0.15);
+        border: 2px solid #dcebd9;
+    }
+
+    .camera-wrapper {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 4 / 3;
+        background: #dfeee0;
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    #video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1);
+    }
+
+    #countdown {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        font-family: 'Playfair Display', serif;
+        font-size: 110px;
+        color: white;
+
+        text-shadow: 0 5px 20px rgba(0, 0, 0, 0.25);
+
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    #countdown.show {
+        opacity: 1;
+        animation: countdownPop 1s ease;
+    }
+
+    @keyframes countdownPop {
+        0% {
+            transform: scale(0.5);
+            opacity: 0;
+        }
+
+        30% {
+            transform: scale(1.1);
+            opacity: 1;
+        }
+
+        100% {
+            transform: scale(1);
+            opacity: 0;
+        }
+    }
+
+    .camera-status {
+        text-align: center;
+        margin-top: 15px;
+        color: #6f9b69;
+        font-size: 13px;
+    }
+
+    .photo-count {
+        margin-top: 20px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #4a7a44;
+    }
+
+    .photo-count span {
+        color: #df7f9d;
+        font-weight: 700;
+    }
+
+    .controls {
+        display: flex;
+        gap: 12px;
+        margin-top: 25px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .booth-button {
+        border: none;
+        border-radius: 30px;
+        padding: 14px 28px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    .start-camera {
+        background: #a8d5a2;
+        color: #2d4a2a;
+    }
+
+    .start-camera:hover {
+        background: #91c88b;
+        transform: translateY(-2px);
+    }
+
+    .capture-button {
+        background: #2d4a2a;
+        color: white;
+    }
+
+    .capture-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 7px 20px rgba(45, 74, 42, 0.25);
+    }
+
+    .capture-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .retake-button {
+        background: #f4b8c8;
+        color: #633847;
+    }
+
+    .retake-button:hover {
+        background: #e9a5b8;
+        transform: translateY(-2px);
+    }
+
+    #canvas {
+        display: none;
+    }
+
+    .preview-area {
+        width: min(700px, 90vw);
+        margin-top: 35px;
+        display: none;
+    }
+
+    .preview-area.show {
+        display: block;
+    }
+
+    .preview-title {
+        text-align: center;
+        font-family: 'Playfair Display', serif;
+        color: #4a7a44;
+        font-size: 25px;
+        margin-bottom: 15px;
+    }
+
+    .photo-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+    }
+
+    .photo-item {
+        background: white;
+        padding: 7px;
+        border-radius: 12px;
+        box-shadow: 0 5px 18px rgba(70, 90, 65, 0.12);
+    }
+
+    .photo-item img {
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
+    }
+
+    .download-button {
+        display: block;
+        margin: 30px auto 0;
+        background: #5ab854;
+        color: white;
+        border: none;
+        border-radius: 30px;
+        padding: 14px 28px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    .download-button:hover {
+        background: #4a9b44;
+        transform: translateY(-2px);
+    }   
+
+    .booth-shell { max-width: 1180px; margin: 0 auto; padding: 26px 32px 58px; }
+    .booth-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 60px; }
+    .booth-brand { color: #718b7d; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; text-decoration: none; white-space: nowrap; }
+    .booth-brand span { color: #e7a8b9; }
+    .booth-header-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; margin-left: auto; }
+    .booth-nav { display: flex; gap: 20px; align-items: center; }
+    .booth-nav a { color: #78847d; font-size: 14px; font-weight: 500; text-decoration: none; transition: color .2s ease; }
+    .booth-nav a:hover, .booth-nav a.active { color: #df91a7; }
+    .stepper { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .step { color: #acb8b1; font-size: 11px; letter-spacing: .04em; padding: 7px 10px; border-bottom: 2px solid transparent; }
+    .step.active { color: #718b7d; border-color: #e7a8b9; font-weight: 700; }
+    .booth-screen { display: none; animation: screenIn .4s ease both; }
+    .booth-screen.active { display: block; }
+    @keyframes screenIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .start-copy { max-width: 580px; padding: 54px 0 80px; }
+    .eyebrow { color: #d999ac; font-size: 11px; font-weight: 700; letter-spacing: .18em; margin-bottom: 18px; }
+    .start-copy h1 { font-size: clamp(58px, 9vw, 104px); line-height: .92; margin-bottom: 28px; }
+    .start-copy h1 em, .screen-heading em { color: #e5a5b7; font-style: italic; }
+    .start-copy p:not(.eyebrow) { color: #89918c; font-size: 17px; line-height: 1.7; max-width: 360px; margin-bottom: 34px; }
+    .start-art { position: absolute; top: 180px; right: max(7vw, 80px); width: 290px; height: 360px; transform: rotate(5deg); }
+    .art-card { position: absolute; width: 215px; height: 285px; border-radius: 7px; padding: 18px; box-shadow: 12px 18px 0 rgba(231,168,185,.5); }
+    .art-card-back { top: 24px; left: 20px; background: #c8dfd2; color: white; font: 80px 'Playfair Display', serif; text-align: center; padding-top: 90px; transform: rotate(-12deg); }
+    .art-card-front { top: 42px; left: 72px; background: #fdf7f0; color: #718b7d; transform: rotate(7deg); display: flex; flex-direction: column; justify-content: flex-end; }
+    .art-card-front span { color: #e7a8b9; font-size: 54px; font-family: 'Playfair Display', serif; position: absolute; top: 22px; right: 22px; }
+    .art-card-front strong { font: 38px 'Playfair Display', serif; }.art-card-front small { letter-spacing: .18em; font-size: 10px; }
+    .art-spark { position: absolute; color: #e5a5b7; font-size: 27px; }.spark-one { top: 6px; right: 0; }.spark-two { bottom: 8px; left: 12px; color: #a9c8b7; }
+    .primary-button, .secondary-button, .text-button { border: 0; cursor: pointer; font: 600 13px 'DM Sans', sans-serif; transition: .2s ease; }
+    .primary-button { padding: 15px 23px; border-radius: 28px; background: #e9b0c0; color: white; box-shadow: 0 8px 20px rgba(220,161,178,.2); }.primary-button span { margin-left: 12px; font-size: 17px; }
+    .primary-button:hover { background: #df9daf; transform: translateY(-2px); }.primary-button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .secondary-button { padding: 12px 18px; border-radius: 22px; background: #d9e8df; color: #718b7d; }.secondary-button:hover { background: #c8dfd2; }
+    .text-button { background: transparent; color: #89918c; padding: 12px 0; }.text-button:hover { color: #df91a7; }
+    .screen-heading { margin-bottom: 34px; }.screen-heading h2 { color: #708b7d; font: 600 clamp(32px, 5vw, 56px)/1.04 'Playfair Display', serif; }.compact-heading { margin-bottom: 22px; }
+    .layout-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }.layout-card { border: 1px solid #f0d9df; background: #fff; border-radius: 18px; padding: 14px; text-align: left; cursor: pointer; color: #718b7d; transition: .2s ease; }.layout-card:hover, .layout-card.selected { border-color: #e7a8b9; box-shadow: 0 10px 25px rgba(180,170,165,.12); transform: translateY(-3px); }.layout-card strong, .layout-card small { display: block; }.layout-card strong { font-size: 13px; margin: 13px 0 5px; }.layout-card small { color: #a0aaa4; font-size: 11px; line-height: 1.4; }.layout-preview { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; height: 145px; background: #f7eee9; border-radius: 11px; padding: 11px; }.layout-preview i { display: block; background: #c8dfd2; border-radius: 3px; }.strip-preview { flex-direction: column; width: 42%; margin: auto; }.strip-preview i { width: 100%; height: 25px; }.grid-preview { display: grid; grid-template-columns: 1fr 1fr; }.grid-preview i { width: 100%; height: 56px; }.polaroid-preview i { width: 38%; height: 82px; background: #fff; border: 5px solid #c8dfd2; transform: rotate(-7deg); }.polaroid-preview i:last-child { transform: rotate(8deg); }.square-preview { display: grid; grid-template-columns: 1fr 1fr; }.square-preview i { width: 100%; height: 52px; }.custom-preview { background: #d9e8df; color: #fff; font-size: 45px; }.screen-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 40px; }
+    .camera-workspace { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(230px, .8fr); gap: 20px; }.camera-panel, .camera-options, .custom-controls, .output-tools { background: #fff; border: 1px solid #f0d9df; border-radius: 18px; padding: 18px; }.camera-view { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 13px; background: #d9e8df; }.camera-view #video { display: block; }.camera-view #cameraPlaceholder { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #718b7d; text-align: center; }.camera-view #cameraPlaceholder span { font-size: 50px; }.camera-view #cameraPlaceholder p { font-size: 12px; }.camera-status { min-height: 20px; margin: 12px 0; }.camera-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }.shutter-button { width: 58px; height: 58px; border-radius: 50%; border: 7px solid #f4d5df; background: #e7a8b9; color: #fff; font-size: 24px; cursor: pointer; }.shutter-button:disabled { opacity: .45; cursor: not-allowed; }.upload-button { padding: 11px 15px; border: 1px dashed #d999ac; border-radius: 20px; color: #d07891; font-size: 12px; cursor: pointer; }.camera-options { display: flex; flex-direction: column; gap: 20px; }.option-block label, .custom-controls label, .sticker-picker > span { display: block; color: #718b7d; font-size: 11px; font-weight: 700; letter-spacing: .06em; margin-bottom: 7px; }.option-block select, .custom-controls input, .custom-controls select { width: 100%; border: 1px solid #e6e8e5; background: #fffaf7; color: #718b7d; border-radius: 9px; padding: 10px; font: 12px 'DM Sans', sans-serif; }.option-hint { display: block; color: #a0aaa4; font-size: 10px; line-height: 1.4; margin-top: 6px; }.toggle-option { display: flex; justify-content: space-between; align-items: center; color: #718b7d; font-size: 13px; }.toggle-option input { display: none; }.toggle-option i { width: 40px; height: 22px; border-radius: 20px; background: #d9e8df; position: relative; cursor: pointer; }.toggle-option i:after { content: ''; position: absolute; width: 16px; height: 16px; top: 3px; left: 3px; border-radius: 50%; background: white; transition: .2s; }.toggle-option input:checked + i { background: #e7a8b9; }.toggle-option input:checked + i:after { left: 21px; }.capture-note { color: #9aa59e; font-size: 11px; line-height: 1.5; }.capture-note strong { color: #df91a7; font-size: 17px; }.camera-options .photo-grid { grid-template-columns: repeat(4, 1fr); gap: 5px; }.camera-options .photo-item { padding: 3px; border-radius: 5px; }.camera-options .photo-item img { border-radius: 3px; }
+    #flashOverlay { position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; }.flash-on { animation: flash .35s ease; }@keyframes flash { 0%, 100% { opacity: 0; } 35% { opacity: .95; } }
+    .customize-workspace { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(260px, .8fr); gap: 28px; align-items: start; }.final-preview-wrap { display: flex; justify-content: center; background: #d9e8df; border-radius: 18px; padding: 22px; min-height: 470px; }.final-preview-wrap canvas { max-width: 100%; max-height: 560px; width: auto; height: auto; border-radius: 5px; box-shadow: 0 12px 28px rgba(80,100,75,.16); }.custom-controls { display: grid; gap: 15px; }.custom-controls label { margin: 0; }.custom-controls input, .custom-controls select { margin-top: 6px; }.photo-editor { display: grid; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid #f0d9df; }.editor-preview-wrap { display: flex; justify-content: center; align-items: center; min-height: 190px; padding: 12px; border-radius: 12px; background: #f7eee9; }.editor-preview-wrap canvas { max-width: 100%; max-height: 260px; width: auto; height: auto; border-radius: 5px; box-shadow: 0 8px 20px rgba(80,100,75,.12); }.editor-photos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }.editor-photo { border: 2px solid transparent; border-radius: 7px; padding: 3px; background: #fff; cursor: pointer; }.editor-photo.selected { border-color: #e7a8b9; }.editor-photo img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; }.editor-options { display: grid; gap: 10px; }.editor-label { color: #718b7d; font-size: 11px; font-weight: 700; letter-spacing: .06em; }.ratio-picker { display: flex; gap: 6px; flex-wrap: wrap; }.ratio-picker button { border: 1px solid #e6e8e5; border-radius: 8px; padding: 8px 10px; background: #fffaf7; color: #718b7d; font: 11px 'DM Sans', sans-serif; cursor: pointer; }.ratio-picker button.selected, .ratio-picker button:hover { border-color: #e7a8b9; background: #f6dce4; }.sticker-picker { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }.sticker-picker > span { width: 100%; margin-bottom: 0; }.sticker-picker button { width: 35px; height: 35px; border: 1px solid #f0d9df; border-radius: 50%; background: #fffaf7; color: #df91a7; cursor: pointer; font-size: 18px; }.sticker-picker button:hover, .sticker-picker button.selected { background: #f6dce4; border-color: #e7a8b9; }
+    .visual-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 7px; }.visual-picker button { position: relative; width: 58px; height: 58px; border: 1px solid #e6e8e5; border-radius: 10px; background: #fffaf7; cursor: pointer; transition: .2s ease; }.visual-picker button:hover, .visual-picker button.selected { border-color: #e7a8b9; box-shadow: 0 0 0 2px #f6dce4; transform: translateY(-2px); }.visual-picker button:focus-visible { outline: 2px solid #df91a7; outline-offset: 2px; }.visual-picker button::after { content: attr(aria-label); position: absolute; left: 50%; bottom: -25px; transform: translateX(-50%); color: #89918c; font: 10px 'DM Sans', sans-serif; white-space: nowrap; opacity: 0; pointer-events: none; }.visual-picker button:hover::after, .visual-picker button:focus-visible::after { opacity: 1; }.visual-value { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }.frame-swatch { display: block; width: 38px; height: 42px; margin: auto; border: 3px solid #d9e8df; background: #fffaf7; }.frame-swatch.petal { border: 5px solid #e7a8b9; }.frame-swatch.film { border: 7px solid #2d3935; background: repeating-linear-gradient(to bottom, #fffaf7 0 7px, #f7eee9 7px 12px); }.frame-swatch.doodle { border: 2px dashed #d999ac; }.frame-swatch.double { border: 5px double #e7a8b9; }.frame-swatch.corner { border: 8px solid transparent; border-top-color: #d999ac; border-left-color: #d999ac; }
+    .output-workspace { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(280px, .9fr); gap: 28px; align-items: center; }.output-image-wrap { min-height: 470px; padding: 25px; border-radius: 18px; background: #d9e8df; display: flex; justify-content: center; }.output-image-wrap img { max-width: 100%; max-height: 560px; object-fit: contain; box-shadow: 0 12px 28px rgba(80,100,75,.16); }.output-tools { display: grid; gap: 24px; }.qr-panel { display: flex; gap: 16px; align-items: center; color: #718b7d; }.qr-panel canvas, .qr-panel .qr-fallback { width: 105px; height: 105px; padding: 8px; background: #fff; border-radius: 8px; object-fit: contain; }.qr-fallback-message { display: flex; align-items: center; justify-content: center; width: 105px; min-height: 105px; padding: 10px; border-radius: 8px; background: #fff; color: #89918c; font-size: 10px; line-height: 1.4; text-align: center; }.qr-panel strong { font: 22px 'Playfair Display', serif; }.qr-panel p { color: #9aa59e; font-size: 12px; line-height: 1.5; margin-top: 6px; }.output-actions { display: grid; gap: 10px; }.output-actions .secondary-button { text-align: center; }
+    .output-exports { display: grid; gap: 12px; padding-top: 18px; border-top: 1px solid #f0d9df; }.output-exports h3, .gif-option strong { color: #718b7d; font: 600 19px 'Playfair Display', serif; }.photo-downloads { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }.photo-download { display: block; padding: 10px 12px; border: 1px solid #f0d9df; border-radius: 12px; background: #fffaf7; color: #718b7d; font: 500 12px 'DM Sans', sans-serif; text-align: center; text-decoration: none; transition: .2s ease; }.photo-download:hover { border-color: #e7a8b9; background: #fdf3f5; }.gif-option { display: grid; gap: 9px; padding: 14px; border-radius: 14px; background: #f7eee9; }.gif-option p, .output-status { color: #89918c; font-size: 11px; line-height: 1.5; }.gif-option .secondary-button, .gif-option .primary-button { width: 100%; text-align: center; }.gif-option [hidden] { display: none; }.gif-status { min-height: 16px; color: #718b7d; font-size: 11px; line-height: 1.4; }
+    .output-tools .qr-panel { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; padding: 14px; border: 1px solid #f0d9df; border-radius: 14px; background: #fffaf7; }.output-tools .qr-panel canvas, .output-tools .qr-panel .qr-fallback, .output-tools .qr-panel .qr-fallback-message { width: 120px; height: 120px; min-height: 120px; }
+    .photo-item.retakeable { position: relative; border: 0; cursor: pointer; transition: .2s ease; }
+    .photo-item.retakeable:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(231,168,185,.35); }
+    .retake-label { position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 6px 8px; border-radius: 999px; background: rgba(231,168,185,.92); color: #fff; font: 700 10px 'DM Sans', sans-serif; letter-spacing: .08em; text-transform: uppercase; text-align: center; }
+    .editor-options { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .crop-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(45,57,53,.6); }
+    .crop-modal[hidden] { display: none; }
+    .crop-dialog { background: #fff; border-radius: 18px; padding: 20px; max-width: 94vw; max-height: 94vh; overflow: auto; display: grid; gap: 12px; justify-items: center; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+    .crop-dialog h3 { font: 600 24px 'Playfair Display', serif; color: #708b7d; margin: 0; }
+    .crop-stage { position: relative; display: inline-block; line-height: 0; overflow: hidden; border-radius: 8px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair; background: #d9e8df; }
+    .crop-stage img { display: block; max-width: min(86vw, 760px); max-height: 58vh; width: auto; height: auto; pointer-events: none; -webkit-user-drag: none; }
+    .crop-box { position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 9999px rgba(45,57,53,.55); cursor: move; touch-action: none; }
+    .crop-box::before, .crop-box::after { content: ''; position: absolute; pointer-events: none; }
+    .crop-box::before { left: 33.33%; right: 33.33%; top: 0; bottom: 0; border-left: 1px dashed rgba(255,255,255,.7); border-right: 1px dashed rgba(255,255,255,.7); }
+    .crop-box::after { top: 33.33%; bottom: 33.33%; left: 0; right: 0; border-top: 1px dashed rgba(255,255,255,.7); border-bottom: 1px dashed rgba(255,255,255,.7); }
+    .crop-box i { position: absolute; width: 18px; height: 18px; background: #e7a8b9; border: 2px solid #fff; border-radius: 50%; z-index: 1; }
+    .crop-box i[data-h="nw"] { left: -9px; top: -9px; cursor: nwse-resize; }
+    .crop-box i[data-h="n"] { left: calc(50% - 9px); top: -9px; cursor: ns-resize; }
+    .crop-box i[data-h="ne"] { right: -9px; top: -9px; cursor: nesw-resize; }
+    .crop-box i[data-h="e"] { right: -9px; top: calc(50% - 9px); cursor: ew-resize; }
+    .crop-box i[data-h="se"] { right: -9px; bottom: -9px; cursor: nwse-resize; }
+    .crop-box i[data-h="s"] { left: calc(50% - 9px); bottom: -9px; cursor: ns-resize; }
+    .crop-box i[data-h="sw"] { left: -9px; bottom: -9px; cursor: nesw-resize; }
+    .crop-box i[data-h="w"] { left: -9px; top: calc(50% - 9px); cursor: ew-resize; }
+    .crop-actions { display: flex; gap: 10px; align-items: center; justify-content: flex-end; width: 100%; }
+    @media (max-width: 900px) { .layout-grid { grid-template-columns: repeat(3, 1fr); }.layout-preview { height: 120px; } }
+    @media (max-width: 650px) { .booth-shell { padding: 20px 16px 40px; }.booth-header { align-items: flex-start; flex-direction: column; margin-bottom: 35px; }.booth-header-tools { width: 100%; align-items: flex-start; margin-left: 0; gap: 10px; }.booth-nav { width: 100%; gap: 12px; flex-wrap: wrap; }.stepper { justify-content: flex-start; gap: 2px; }.step { padding: 5px 4px; font-size: 9px; }.layout-grid, .camera-workspace, .customize-workspace, .output-workspace { grid-template-columns: 1fr; }.layout-preview { height: 105px; }.screen-heading h2 { font-size: 38px; }.screen-actions { margin-top: 25px; }.start-art { transform: scale(.82) rotate(5deg); transform-origin: top center; height: 300px; }.camera-options .photo-grid { grid-template-columns: repeat(4, 1fr); }.final-preview-wrap, .output-image-wrap { min-height: 300px; }.output-tools { padding: 16px; } }
+
+</style>
+
+</head>
+
+<body>
+    <main class="booth-shell">
+        <header class="booth-header">
+            <a class="booth-brand" href="index.html"><span>XEN</span> PHOTOBOOTH</a>
+            <div class="booth-header-tools">
+                <nav class="booth-nav" aria-label="Main navigation">
+                    <a href="index.html">Home</a>
+                    <a href="about.html">About</a>
+                    <a href="photobooth.html" class="active" aria-current="page">Photobooth</a>
+                    <a href="privacy.html">Privacy</a>
+                    <a href="contact.html">Contact</a>
+                </nav>
+                <div class="stepper" aria-label="Photobooth progress">
+                    <span class="step active" data-step-indicator="layout">01 Layout</span>
+                    <span class="step" data-step-indicator="camera">02 Camera</span>
+                    <span class="step" data-step-indicator="customize">03 Style</span>
+                    <span class="step" data-step-indicator="output">04 Output</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="booth-screen active" data-screen="layout">
+            <div class="screen-heading"><p class="eyebrow">STEP 02 / CHOOSE YOUR SHAPE</p><h2>How should your memories<br><em>come together?</em></h2></div>
+            <div class="layout-grid">
+                <button class="layout-card selected" type="button" data-layout="strip"><span class="layout-preview strip-preview"><i></i><i></i><i></i></span><strong>2 × 6 photostrip</strong><small>Classic booth energy · 3 photos</small></button>
+                <button class="layout-card" type="button" data-layout="grid"><span class="layout-preview grid-preview"><i></i><i></i><i></i><i></i></span><strong>4-photo grid</strong><small>Balanced and bright · 4 photos</small></button>
+                <button class="layout-card" type="button" data-layout="polaroid"><span class="layout-preview polaroid-preview"><i></i><i></i></span><strong>Polaroid style</strong><small>Loose, lovely, nostalgic · 2 photos</small></button>
+                <button class="layout-card" type="button" data-layout="square"><span class="layout-preview square-preview"><i></i><i></i><i></i><i></i></span><strong>Square collage</strong><small>Made for your feed · 4 photos</small></button>
+                <button class="layout-card custom-layout" type="button" data-layout="custom"><span class="layout-preview custom-preview">✦</span><strong>Custom event template</strong><small>Admin template slot · 4 photos</small></button>
+            </div>
+            <div class="screen-actions"><a class="text-button" href="index.html">← Home</a><button class="primary-button" type="button" data-next="camera">Use this layout <span>→</span></button></div>
+        </section>
+
+        <section class="booth-screen" data-screen="camera">
+            <div class="screen-heading compact-heading"><p class="eyebrow">STEP 03 / MAKE THE MOMENT</p><h2>Lights, camera, <em>you.</em></h2></div>
+            <div class="camera-workspace">
+                <div class="camera-panel">
+                    <div class="camera-view">
+                        <video id="video" autoplay playsinline></video>
+                        <div id="cameraPlaceholder"><span>◌</span><p>Your camera preview will appear here</p></div>
+                        <div id="countdown" aria-live="assertive"></div><div id="flashOverlay"></div>
+                    </div>
+                    <p id="cameraStatus" class="camera-status" role="status">Tap start camera or upload your own images.</p>
+                    <div class="camera-actions"><button id="startCamera" class="secondary-button" type="button">Start camera</button><button id="captureButton" class="shutter-button" type="button" disabled aria-label="Capture photos">●</button><label class="upload-button" for="imageUpload">Upload images</label><input id="imageUpload" type="file" accept="image/*" multiple hidden></div>
+                </div>
+                <aside class="camera-options">
+                    <div class="option-block"><label for="cameraSelect">Camera</label><select id="cameraSelect"><option value="">Default camera</option></select><small class="option-hint">Choose a webcam or phone camera</small></div>
+                    <div class="option-block"><label for="countdownSelect">Countdown</label><select id="countdownSelect"><option value="3">3 seconds</option><option value="10">10 seconds</option></select></div>
+                    <div class="option-block"><label for="filterSelect">Filter</label><select id="filterSelect"><option value="none">Original</option><option value="grayscale(1)">Black &amp; white</option><option value="sepia(.65) saturate(.8)">Vintage</option><option value="sepia(.25) saturate(1.35)">Warm</option><option value="hue-rotate(165deg) saturate(.75)">Cool</option><option value="contrast(.9) brightness(1.08)">Soft</option><option value="brightness(1.25) saturate(1.1)">Bright</option></select></div>
+                    <label class="toggle-option"><span>Flash</span><input id="flashToggle" type="checkbox"><i></i></label>
+                    <p class="capture-note"><strong id="photoNumber">0</strong> / <span class="photo-limit-value">3</span> photos ready. Tap a captured photo below to retake it before you finish.</p>
+                    <div id="photoGrid" class="photo-grid"></div>
+                </aside>
+            </div>
+            <div class="screen-actions"><button class="text-button" type="button" data-back="layout">← Layouts</button><button id="toCustomize" class="primary-button" type="button" data-next="customize" disabled>Style my photos <span>→</span></button></div>
+        </section>
+
+        <section class="booth-screen" data-screen="customize">
+            <div class="screen-heading compact-heading"><p class="eyebrow">STEP 04 / MAKE IT YOURS</p><h2>Add the details that make it <em>yours.</em></h2></div>
+            <div class="customize-workspace"><div class="final-preview-wrap"><canvas id="customCanvas" width="900" height="2700"></canvas></div><div class="custom-controls">
+                <div class="photo-editor"><label class="editor-label">Edit captured photo</label><small class="option-hint">Tap a photo below to crop it.</small><div class="editor-preview-wrap"><canvas id="editorCanvas" width="720" height="540"></canvas></div><div id="editorPhotos" class="editor-photos"></div><div class="editor-options"><button id="cropOpen" class="secondary-button" type="button">Crop selected photo</button><button id="cropClear" class="text-button" type="button">Reset crop</button></div></div>
+                <label>Event name<input id="eventName" type="text" placeholder="Saturday with my favorites"></label>
+                <label>Date<input id="eventDate" type="text" value="September 2026" placeholder="September 2026"></label>
+                <label>Time<input id="eventTime" type="text" value="12:00" placeholder="12:00"></label>
+                <div class="visual-control"><label>Frame design</label><div class="visual-picker" data-picker="frame"><button type="button" class="selected" data-value="none" aria-label="No frame"><span class="frame-swatch"></span></button><button type="button" data-value="petal" aria-label="Petal border"><span class="frame-swatch petal"></span></button><button type="button" data-value="film" aria-label="Film edge"><span class="frame-swatch film"></span></button><button type="button" data-value="doodle" aria-label="Doodle corners"><span class="frame-swatch doodle"></span></button><button type="button" data-value="double" aria-label="Double line"><span class="frame-swatch double"></span></button><button type="button" data-value="corner" aria-label="Corner accents"><span class="frame-swatch corner"></span></button></div><select id="frameSelect" class="visual-value" aria-label="Frame design"><option value="none">No frame</option><option value="petal">Petal border</option><option value="film">Film edge</option><option value="doodle">Doodle corners</option><option value="double">Double line</option><option value="corner">Corner accents</option></select></div>
+                <label>Custom logo<input id="logoUpload" type="file" accept="image/*"></label>
+                <div class="sticker-picker"><span>Stickers</span><button type="button" data-sticker="✦">✦</button><button type="button" data-sticker="♡">♡</button><button type="button" data-sticker="☼">☼</button><button type="button" data-sticker="✿">✿</button></div>
+            </div></div>
+            <div class="screen-actions"><button class="text-button" type="button" data-back="camera">← Retake</button><button class="primary-button" type="button" data-next="output">See final preview <span>→</span></button></div>
+        </section>
+
+        <section class="booth-screen" data-screen="output">
+            <div class="screen-heading"><p class="eyebrow">STEP 05 / KEEP THE MOMENT</p><h2>That’s a wrap. <em>Lovely.</em></h2></div>
+            <div class="output-workspace">
+                <div class="output-image-wrap"><img id="finalImage" alt="Your finished photobooth photo"></div>
+                <div class="output-tools">
+                    <div class="qr-panel"><canvas id="qrCanvas"></canvas><div><strong>Scan to open</strong><p>Open Xen Photobooth on this site's address.</p></div></div>
+                    <div class="output-actions"><button id="downloadButton" class="primary-button" type="button">Download photostrip <span>↓</span></button><button id="printButton" class="secondary-button" type="button">Print</button><button id="saveButton" class="secondary-button" type="button">Save photostrip locally</button></div>
+                    <div class="output-exports">
+                        <h3>Download separately</h3>
+                        <div id="photoDownloads" class="photo-downloads" aria-label="Download individual photos"></div>
+                        <div class="gif-option">
+                            <div><strong>GIF Option</strong><p><span id="gifSourcePhotos"></span> → Animated GIF</p></div>
+                            <button id="createGifButton" class="secondary-button" type="button">Create animated GIF</button>
+                            <p id="gifStatus" class="gif-status" role="status" aria-live="polite"></p>
+                            <a id="downloadGifButton" class="primary-button" href="#" download="xen-photobooth-animation.gif" hidden>Download GIF separately <span>↓</span></a>
+                        </div>
+                    </div>
+                    <p id="outputStatus" class="output-status" role="status" aria-live="polite"></p>
+                    <button class="text-button" type="button" data-next="layout">Start a new session ↗</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="cropModal" class="crop-modal" hidden role="dialog" aria-modal="true" aria-label="Crop photo">
+        <div class="crop-dialog">
+            <h3>Crop photo</h3>
+            <p class="option-hint">Drag the box to move it, drag the handles to resize, or drag on the photo to draw a new crop.</p>
+            <div id="cropStage" class="crop-stage">
+                <img id="cropImage" alt="Photo to crop" draggable="false">
+                <div id="cropBox" class="crop-box">
+                    <i data-h="nw"></i><i data-h="n"></i><i data-h="ne"></i><i data-h="e"></i>
+                    <i data-h="se"></i><i data-h="s"></i><i data-h="sw"></i><i data-h="w"></i>
+                </div>
+            </div>
+            <div class="crop-actions">
+                <button id="cropCancel" class="text-button" type="button">Cancel</button>
+                <button id="cropReset" class="secondary-button" type="button">Reset</button>
+                <button id="cropApply" class="primary-button" type="button">Apply crop</button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas" hidden></canvas>
+    <script src="js/config.js" defer></script>
+    <script src="js/booth-config.js" defer></script>
+    <script src="/vendor/gif.js/gif.js" defer></script>
+    <script src="js/photobooth.js" defer></script>
+</body>
+</html>

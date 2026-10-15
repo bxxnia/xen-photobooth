@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Admin · Xen Photobooth</title>
+    <script>if (sessionStorage.getItem("xenAdmin") !== "1") location.replace("admin-login.html");</script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+    <header class="admin-top">
+        <strong class="admin-brand"><span>XEN</span> admin</strong>
+        <nav class="tabs" id="tabs" aria-label="Admin sections">
+            <button data-act="tab" data-tab="layouts" class="active">Layouts (Step 2)</button>
+            <button data-act="tab" data-tab="templates">Templates</button>
+            <button data-act="tab" data-tab="frames">Frames</button>
+            <button data-act="tab" data-tab="settings">Settings</button>
+        </nav>
+        <div class="top-actions"><a class="btn ghost" href="photobooth.html" target="_blank" rel="noopener">View photobooth</a><button class="btn ghost" data-act="logout">Log out</button></div>
+    </header>
+    <main class="admin-main" id="view"></main>
+    <div id="toast" class="toast" role="status"></div>
+    <script src="js/config.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>
